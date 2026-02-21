@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User'); 
-const Task = require('../models/Task'); // CRITICAL: Task model import karne garjeche aahe
+const Task = require('../models/Task'); 
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken');
 
-// --- REGISTER USER ---
-router.post('/register', async (req, res) => {
+// --- SIGNUP USER (Matches Frontend /auth/signup) ---
+// ✅ '/register' badlun '/signup' kele aahe
+router.post('/signup', async (req, res) => {
     try {
         const { username, email, password, role } = req.body; 
 
@@ -30,11 +31,10 @@ router.post('/register', async (req, res) => {
         await user.save();
 
         // --- IMPORTANT: MEMBER STATUS UPDATE LOGIC ---
-        // Jar register honara user 'Member' asel, tar tyache tasks 'Active' kara
         if (user.role === 'Member') {
             await Task.updateMany(
-                { assignedTo: email }, // Member cha email match kara
-                { status: 'Active' }   // Status dash (-) pasun Active kara
+                { assignedTo: email }, 
+                { status: 'Active' }   
             );
             console.log(`✨ Tasks activated for member: ${email}`);
         }
@@ -65,11 +65,11 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ msg: "Invalid credentials" });
         }
 
-        // 3. JWT Token create kara (Environment variable vapra)
+        // 3. JWT Token create kara
         const token = jwt.sign(
             { id: user._id, role: user.role }, 
             process.env.JWT_SECRET || 'your_secret_key', 
-            { expiresIn: '24h' } // Token duration vadhvli aahe
+            { expiresIn: '24h' } 
         );
 
         // 4. Success response
@@ -77,7 +77,7 @@ router.post('/login', async (req, res) => {
         res.json({
             token,
             username: user.username,
-            email: user.email, // Frontend sathi email pathvne bare padte
+            email: user.email, 
             role: user.role 
         });
 
