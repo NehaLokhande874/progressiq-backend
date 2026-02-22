@@ -15,13 +15,22 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory for storing files.");
 }
 
-// 💡 2. UPDATED CORS SETTINGS (FIXED)
+// 💡 2. DYNAMIC CORS SETTINGS (FIXED FOR ALL VERCEL LINKS)
 app.use(cors({
-    origin: [
-        'http://localhost:5173', 
-        'https://progresiq-frontend.vercel.app', // ✅ Fixed spelling (single 's')
-        'https://progresiq-frontend-h3jrrioam-nehalokhande874s-projects.vercel.app' // ✅ Added specific Vercel branch link
-    ],
+    origin: function (origin, callback) {
+        // Allow local development and any Vercel deployment link
+        const allowedOrigins = [
+            'http://localhost:5173', 
+            'https://progresiq-frontend.vercel.app'
+        ];
+        
+        // If origin is in the list or ends with .vercel.app, allow it
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Blocked by CORS policy'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
