@@ -1,26 +1,28 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path'); // Path module garjeche aahe
 require('dotenv').config();
 
 const app = express();
 
 // ✅ 1. FIXED CORS CONFIGURATION
-// frontend link specific taklyamule 'credentials: true' aata block honar nahi
 app.use(cors({
-  origin: 'https://progressiq-frontend.vercel.app', 
+  origin: ['https://progressiq-frontend.vercel.app', 'http://localhost:3000'], // Dev ani Production donhi sathi
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true 
 }));
 
-// ✅ 2. EXPLICIT OPTIONS HANDLER
-// Browser cha 'preflight' request handle karnyathi
 app.options('*', cors());
 
-// ✅ 3. MIDDLEWARE
+// ✅ 2. MIDDLEWARE
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ✅ 3. STATIC FOLDER FOR UPLOADS (Aatichya code madhe missing hote)
+// Hyamule /uploads/filename.pdf hi link browser madhe open hoil
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ 4. HEALTH CHECK ROUTE
 app.get('/health', (req, res) => {
@@ -28,7 +30,6 @@ app.get('/health', (req, res) => {
 });
 
 // ✅ 5. ROUTES
-// Frontend 'axios.js' madhe baseURL '.../api' asne garjeche aahe
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
@@ -40,7 +41,6 @@ mongoose.connect(MONGO_URI)
 
 // ✅ 7. SERVER LISTEN
 const PORT = process.env.PORT || 5000;
-// Render deployment sathi '0.0.0.0' binding garjeche aahe
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on Port: ${PORT}`);
 });
