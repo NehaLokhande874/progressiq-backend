@@ -4,10 +4,11 @@ const multer = require('multer');
 const fs = require('fs');
 const Task = require('../models/Task');
 
-// ✅ 1. Multer Configuration (Ensuring 'uploads' folder exists)
+// ✅ 1. Multer Configuration (Fixing Deployment Crash)
 const uploadDir = 'uploads/';
+// Error fix: recursive true kelya muly folder asel tar crash honar nahi
 if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir);
+    fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
@@ -15,6 +16,7 @@ const storage = multer.diskStorage({
         cb(null, uploadDir); 
     },
     filename: (req, file, cb) => {
+        // Space kadhun underscore lavla mhanje URL madhe problem yenar nahi
         cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
@@ -37,7 +39,7 @@ router.post('/assign', async (req, res) => {
             assignedTo: email,
             leaderEmail: leaderEmail,
             deadline,
-            status: 'Pending' // Initial state
+            status: 'Pending' 
         });
 
         await newTask.save();
@@ -68,10 +70,9 @@ router.post('/create-multiple', async (req, res) => {
     }
 });
 
-// GET ALL: Leader Dashboard sathi
+// GET ALL: Leader Dashboard table sathi
 router.get('/leader/:leaderEmail', async (req, res) => {
     try {
-        // Navin tasks pahile dakhva
         const tasks = await Task.find({ leaderEmail: req.params.leaderEmail }).sort({ createdAt: -1 });
         res.json(tasks);
     } catch (err) {
@@ -79,7 +80,7 @@ router.get('/leader/:leaderEmail', async (req, res) => {
     }
 });
 
-// ADD FEEDBACK: Leader ne member chya kaamavar feedback dene
+// ADD FEEDBACK: Leader ne kaam check karun feedback dene
 router.put('/add-feedback/:id', async (req, res) => {
     try {
         const { feedback, status } = req.body;
@@ -96,12 +97,13 @@ router.put('/add-feedback/:id', async (req, res) => {
 
 // --- 3. MEMBER ROUTES ---
 
-// FETCH MY TASKS: Member Dashboard sathi
+// FETCH MY TASKS: Member Dashboard load hotana
 router.get('/member/:email', async (req, res) => {
     try {
+        // Dashboard ughadla ki tasks fetch kara
         const tasks = await Task.find({ assignedTo: req.params.email }).sort({ deadline: 1 });
         
-        // Logical Fix: Jar status 'Pending' asel tar tyala 'Active' kara (Member ne pahila mhanun)
+        // Logical Fix: Member ne dashboard ughadla ki Pending tasks automatic Active kara
         await Task.updateMany(
             { assignedTo: req.params.email, status: 'Pending' },
             { $set: { status: 'Active' } }
@@ -113,13 +115,13 @@ router.get('/member/:email', async (req, res) => {
     }
 });
 
-// SUBMIT WORK: Progress update with file
+// SUBMIT WORK: Progress update with file upload
 router.put('/submit-work/:id', upload.single('workFile'), async (req, res) => {
     try {
         const { submissionNote } = req.body;
         
         const updateData = {
-            status: 'Submitted', // Member ne progress pathvli mhanje status 'Submitted'
+            status: 'Submitted', // Leader la status 'Submitted' disel
             submissionNote: submissionNote,
             submittedAt: new Date()
         };
