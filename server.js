@@ -15,14 +15,15 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory.");
 }
 
-// 💡 2. DYNAMIC CORS SETTINGS (Final Professional Fix)
+// 💡 2. FINAL CORS FIX (Handles all Vercel Preflight Requests)
+// Hyamule 'Signup Failed' cha issue 100% solve hoil
 app.use(cors({
     origin: function (origin, callback) {
-        // ✅ Allow requests with no origin (like Postman or Mobile)
+        // Allow requests with no origin (like mobile apps)
         if (!origin) return callback(null, true);
         
-        // ✅ Strict check for Localhost and ANY Vercel link
-        // handles 'progresiq-frontend.vercel.app'
+        // Allow ONLY localhost and any Vercel link for ProgressIQ
+        // Handles 'progressiq-frontend.vercel.app'
         if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
             callback(null, true);
         } else {
@@ -30,7 +31,7 @@ app.use(cors({
             callback(new Error('Blocked by CORS policy'));
         }
     },
-    // ✅ 'OPTIONS' is required for browser security checks before POST requests
+    // ✅ 'OPTIONS' preflight request handle karnyasaathi garjeche aahe
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     credentials: true,
@@ -49,6 +50,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
 // 💡 5. DATABASE CONNECTION
+// Render var MONGO_URI environment variable set asne garjeche aahe
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ ProgressIQ Database Connected...'))
@@ -76,7 +78,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const IP_ADDRESS = getLocalIP();
 
-// Listen on 0.0.0.0 for Render deployment compatibility
+// Listen on 0.0.0.0 for Render compatibility
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server running on Port: ${PORT}`);
     console.log(`📡 Network Access: http://${IP_ADDRESS}:${PORT}`);
