@@ -5,8 +5,7 @@ const Task = require('../models/Task');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken');
 
-// --- SIGNUP USER (Matches Frontend /auth/signup) ---
-// ✅ '/register' badlun '/signup' kele aahe
+// --- SIGNUP USER ---
 router.post('/signup', async (req, res) => {
     try {
         const { username, email, password, role } = req.body; 
@@ -30,13 +29,14 @@ router.post('/signup', async (req, res) => {
 
         await user.save();
 
-        // --- IMPORTANT: MEMBER STATUS UPDATE LOGIC ---
+        // --- MEMBER STATUS UPDATE LOGIC ON SIGNUP ---
+        // Jar leader ne pahilech task assign kele astil, tar signup nantar te active hotil
         if (user.role === 'Member') {
             await Task.updateMany(
-                { assignedTo: email }, 
-                { status: 'Active' }   
+                { assignedTo: email, status: 'Pending' }, 
+                { $set: { status: 'Active' } }   
             );
-            console.log(`✨ Tasks activated for member: ${email}`);
+            console.log(`✨ Tasks activated for new member: ${email}`);
         }
         
         console.log(`✅ User registered: ${email} as ${user.role}`);
@@ -63,6 +63,16 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(400).json({ msg: "Invalid credentials" });
+        }
+
+        // --- ✅ ADDED: MEMBER STATUS UPDATE LOGIC ON LOGIN ---
+        // Member ne login kelya kelya Leader la "Active" disnyasathi:
+        if (user.role === 'Member') {
+            await Task.updateMany(
+                { assignedTo: email, status: 'Pending' }, 
+                { $set: { status: 'Active' } } 
+            );
+            console.log(`📡 Member ${email} is now Active!`);
         }
 
         // 3. JWT Token create kara

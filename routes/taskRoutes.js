@@ -30,7 +30,8 @@ router.post('/assign', async (req, res) => {
             assignedTo: email, // Member's Email
             leaderEmail: leaderEmail || "admin@test.com", // Leader's identifier
             deadline: deadline,
-            status: 'Active' // Default status
+            // ✅ BADAL: Default status 'Pending' pahije, mhanje member login karel tevha to Active hoil
+            status: 'Pending' 
         });
 
         await newTask.save();
@@ -51,7 +52,8 @@ router.post('/create-multiple', async (req, res) => {
             assignedTo: t.assignedTo,
             leaderEmail: leaderEmail,
             deadline: t.deadline,
-            status: 'Active' 
+            // ✅ BADAL: Default status 'Pending'
+            status: 'Pending' 
         }));
 
         await Task.insertMany(formattedTasks);
@@ -90,6 +92,7 @@ router.get('/leader/:leaderEmail', async (req, res) => {
 router.post('/invite', async (req, res) => {
     try {
         const { leaderEmail } = req.body;
+        // Tip: Localhost vaprat asal tar IP update karat raha jar network badalle tar
         const ipAddress = "10.157.236.1"; 
         const groupLink = `http://${ipAddress}:5173/signup?leader=${leaderEmail}&role=Member`;
         res.json({ link: groupLink });
