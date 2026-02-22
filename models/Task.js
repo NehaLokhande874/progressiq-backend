@@ -6,6 +6,13 @@ const TaskSchema = new mongoose.Schema({
         required: [true, "Task title is required"], 
         trim: true 
     },
+    // ✅ NEW: Project Name field - Member Dashboard var dakhvnyasathi
+    projectName: {
+        type: String,
+        required: [true, "Project name is required"],
+        trim: true,
+        default: "Internal Project"
+    },
     assignedTo: { 
         type: String, 
         required: [true, "Member email is required"], 
@@ -18,39 +25,45 @@ const TaskSchema = new mongoose.Schema({
         lowercase: true, 
         trim: true 
     },
+    // ✅ NEW: Mentor Name field - Dashboard var "Mentor" mhanun dakhvnyasathi
+    mentorName: {
+        type: String,
+        trim: true,
+        default: "Lead Mentor"
+    },
     deadline: { 
         type: Date, 
         required: [true, "Deadline date is required"] 
     },
     status: { 
         type: String, 
-        default: '-', 
-        // ✅ Updated enum to include 'Submitted'
-        enum: ['-', 'Active', 'Completed', 'Pending', 'Submitted'] 
+        default: 'Pending', 
+        enum: ['Pending', 'Active', 'Completed', 'Submitted', '-'] 
     },
-    // 🚀 NEW: Fields for Member Submission
+    // 🚀 MEMBER SUBMISSION FIELDS
     submission: {
         fileUrl: { 
             type: String, 
             trim: true,
-            default: "" // Link to GitHub, Drive, or Cloudinary
+            default: "" 
         },
         memberNote: { 
             type: String, 
             trim: true,
-            default: "" // Any message from the member
+            default: "" 
         },
         submittedAt: { 
             type: Date 
         }
     },
-    // 🚀 NEW: Optional field to store Leader's name for easier display
-    leaderName: {
+    // Leader feedback field (jar tula leader dashboard madhun feedback dyaycha asel)
+    feedback: {
         type: String,
-        trim: true
+        trim: true,
+        default: ""
     }
 }, { 
-    timestamps: true // Adds 'createdAt' and 'updatedAt' automatically
+    timestamps: true 
 });
 
 module.exports = mongoose.model('Task', TaskSchema);

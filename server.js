@@ -15,12 +15,12 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory for storing files.");
 }
 
-// 💡 2. UPDATED CORS SETTINGS: Vercel link allow karnyasathi
-// Image nusar tumchi link ithe add keli aahe
+// 💡 2. UPDATED CORS SETTINGS (FIXED)
 app.use(cors({
     origin: [
         'http://localhost:5173', 
-        'https://progressiq-frontend.vercel.app' 
+        'https://progresiq-frontend.vercel.app', // ✅ Fixed spelling (single 's')
+        'https://progresiq-frontend-h3jrrioam-nehalokhande874s-projects.vercel.app' // ✅ Added specific Vercel branch link
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
