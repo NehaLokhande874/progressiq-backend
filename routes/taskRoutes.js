@@ -5,33 +5,22 @@ const fs = require('fs');
 const path = require('path');
 const Task = require('../models/Task');
 
-// ✅ 1. Multer Configuration (Render-Safe Logic)
-// Absolute path vaparlyamule Render chya server var folder cha location chuknar nahi
+// ✅ Multer Configuration
 const uploadDir = path.join(__dirname, '../uploads'); 
-
-// Folder check logic - Error prevent karnyasaathi
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir); 
-    },
-    filename: (req, file, cb) => {
-        // Space kadhun underscore lavla mhanje URL madhe problem yenar nahi
-        cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
-    }
+    destination: (req, file, cb) => { cb(null, uploadDir); },
+    filename: (req, file, cb) => { cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_')); }
 });
 
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
-});
+const upload = multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
 
-// --- 2. LEADER ROUTES ---
+// --- LEADER ROUTES ---
 
-// Dashboard sathi tasks aanne
+// Get leader tasks
 router.get('/leader/:leaderEmail', async (req, res) => {
     try {
         const tasks = await Task.find({ leaderEmail: req.params.leaderEmail }).sort({ createdAt: -1 });
@@ -41,18 +30,11 @@ router.get('/leader/:leaderEmail', async (req, res) => {
     }
 });
 
-// Task assign karne
+// Assign single task
 router.post('/assign', async (req, res) => {
     try {
         const { email, title, deadline, leaderEmail, description } = req.body;
-        const newTask = new Task({
-            title,
-            description,
-            assignedTo: email,
-            leaderEmail,
-            deadline,
-            status: 'Pending'
-        });
+        const newTask = new Task({ title, description, assignedTo: email, leaderEmail, deadline, status: 'Pending' });
         await newTask.save();
         res.status(201).json(newTask);
     } catch (err) {
@@ -60,44 +42,83 @@ router.post('/assign', async (req, res) => {
     }
 });
 
-// --- 3. MEMBER ROUTES ---
+// ✅ Create multiple tasks at once
+router.post('/create-multiple', async (req, res) => {
+    try {
+        const { tasks, leaderEmail } = req.body;
+        if (!tasks || tasks.length === 0) {
+            return res.status(400).json({ error: "No tasks provided" });
+        }
+        const tasksToInsert = tasks.map(task => ({
+            title: task.title,
+            description: task.description || '',
+            assignedTo: task.assignedTo,
+            leaderEmail: leaderEmail,
+            deadline: task.deadline,
+            status: 'Pending'
+        }));
+        await Task.insertMany(tasksToInsert);
+        res.status(201).json({ msg: "✅ Tasks saved successfully!" });
+    } catch (err) {
+        console.error("Create multiple error:", err);
+        res.status(500).json({ error: "Failed to save tasks: " + err.message });
+    }
+});
 
-// Member Dashboard load hotana
+// ✅ Generate Invite Link
+router.post('/invite', async (req, res) => {
+    try {
+        const { leaderEmail } = req.body;
+        if (!leaderEmail) return res.status(400).json({ error: "Leader email required" });
+        const encodedEmail = encodeURIComponent(leaderEmail);
+        const link = `https://progressiq-frontend.vercel.app/signup?leader=${encodedEmail}&role=Member`;
+        res.status(200).json({ link });
+    } catch (err) {
+        res.status(500).json({ error: "Link generation failed" });
+    }
+});
+
+// ✅ Remove member and all their tasks
+router.delete('/remove-member/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        await Task.deleteMany({ assignedTo: email });
+        res.status(200).json({ msg: `✅ ${email} removed successfully.` });
+    } catch (err) {
+        res.status(500).json({ msg: 'Server Error: ' + err.message });
+    }
+});
+
+// --- MEMBER ROUTES ---
+
+// Get member tasks
 router.get('/member/:email', async (req, res) => {
     try {
         const tasks = await Task.find({ assignedTo: req.params.email }).sort({ deadline: 1 });
-        
-        // Dashboard ughadla ki tasks Active kara
         await Task.updateMany(
             { assignedTo: req.params.email, status: 'Pending' },
             { $set: { status: 'Active' } }
         );
-        
         res.json(tasks);
     } catch (err) {
         res.status(500).json({ message: "Error fetching member tasks" });
     }
 });
 
-// ✅ SUBMIT WORK (Fixing the 500 Error)
+// ✅ Submit work with file
 router.put('/submit-work/:id', upload.single('workFile'), async (req, res) => {
     try {
         const { submissionNote } = req.body;
-        
         const updateData = {
-            status: 'Submitted', // Member ne progress pathvli
+            status: 'Submitted',
             submissionNote: submissionNote || "No notes provided",
             submittedAt: new Date()
         };
-
         if (req.file) {
             updateData.fileUrl = `/uploads/${req.file.filename}`;
         }
-
         const task = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
-        
         if (!task) return res.status(404).json({ message: "Task not found" });
-        
         res.json(task);
     } catch (err) {
         console.error("Submission Crash:", err);
