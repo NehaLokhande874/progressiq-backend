@@ -15,12 +15,11 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory for storing files.");
 }
 
-// 💡 2. INDUSTRY-STANDARD CORS SETTINGS (FIXED)
+// 💡 2. FINAL DYNAMIC CORS SETTINGS (Fixed for all Vercel links)
 app.use(cors({
     origin: function (origin, callback) {
-        // ✅ Allow localhost
-        // ✅ Allow your official domain: progresiq-frontend.vercel.app
-        // ✅ Allow ANY Vercel preview link to stop "Blocked by CORS" errors
+        // ✅ Allows localhost
+        // ✅ Allows any URL that contains 'vercel.app' (fixes all spelling/dynamic link issues)
         if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
             callback(null, true);
         } else {
@@ -42,11 +41,8 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
 // 💡 4. DATABASE CONNECTION
-// Added serverSelectionTimeoutMS for more stable Render connections
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
-mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000
-})
+mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ ProgressIQ Database Connected...'))
     .catch(err => console.log('❌ DB Connection Error:', err));
 
