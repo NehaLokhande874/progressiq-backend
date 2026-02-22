@@ -6,16 +6,16 @@ require('dotenv').config();
 const app = express();
 
 // ✅ 1. FIXED CORS CONFIGURATION
-// Specific origin is REQUIRED when credentials: true
+// frontend link specific taklyamule 'credentials: true' aata block honar nahi
 app.use(cors({
-  origin: 'https://progressiq-frontend.vercel.app', // Your exact Vercel URL
+  origin: 'https://progressiq-frontend.vercel.app', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: true // Now this is compatible with the specific origin above
+  credentials: true 
 }));
 
 // ✅ 2. EXPLICIT OPTIONS HANDLER
-// Required to pass the 'preflight' check seen in your console
+// Browser cha 'preflight' request handle karnyathi
 app.options('*', cors());
 
 // ✅ 3. MIDDLEWARE
@@ -28,18 +28,19 @@ app.get('/health', (req, res) => {
 });
 
 // ✅ 5. ROUTES
-// Make sure your frontend calls '.../api/auth/signup'
+// Frontend 'axios.js' madhe baseURL '.../api' asne garjeche aahe
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
 // ✅ 6. DATABASE CONNECTION
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ ProgressIQ Database Connected...'))
   .catch(err => console.log('❌ DB Connection Error:', err));
 
 // ✅ 7. SERVER LISTEN
 const PORT = process.env.PORT || 5000;
+// Render deployment sathi '0.0.0.0' binding garjeche aahe
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on Port: ${PORT}`);
 });
