@@ -15,15 +15,14 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory.");
 }
 
-// 💡 2. FINAL CORS FIX (Handles all Vercel Preflight Requests)
+// 💡 2. FINAL CORS FIX (Professional Grade)
 // Hyamule 'Signup Failed' cha issue 100% solve hoil
 app.use(cors({
     origin: function (origin, callback) {
         // Allow requests with no origin (like mobile apps)
         if (!origin) return callback(null, true);
         
-        // Allow ONLY localhost and any Vercel link for ProgressIQ
-        // Handles 'progressiq-frontend.vercel.app'
+        // Allowed domains check
         if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
             callback(null, true);
         } else {
@@ -31,7 +30,7 @@ app.use(cors({
             callback(new Error('Blocked by CORS policy'));
         }
     },
-    // ✅ 'OPTIONS' preflight request handle karnyasaathi garjeche aahe
+    // ✅ MUST: OPTIONS is required for preflight security checks
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     credentials: true,
@@ -50,7 +49,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/tasks', require('./routes/taskRoutes'));
 
 // 💡 5. DATABASE CONNECTION
-// Render var MONGO_URI environment variable set asne garjeche aahe
+// Render environment variables la prathamya dya
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
 mongoose.connect(MONGO_URI)
     .then(() => console.log('✅ ProgressIQ Database Connected...'))
