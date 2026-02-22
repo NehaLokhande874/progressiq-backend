@@ -12,23 +12,28 @@ const app = express();
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log("📂 Created 'uploads' directory for storing files.");
+    console.log("📂 Created 'uploads' directory.");
 }
 
-// 💡 2. DYNAMIC CORS SETTINGS (Fixed for all spelling variants)
+// 💡 2. DYNAMIC CORS SETTINGS (Final Fix for Render + Vercel)
 app.use(cors({
     origin: function (origin, callback) {
-        // ✅ Allow localhost for development
-        // ✅ Allow ANY link containing 'vercel.app' (handles progresiq vs progressiq)
-        if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
+        // ✅ Allow requests with no origin (like Postman or Mobile)
+        if (!origin) return callback(null, true);
+        
+        // ✅ Strict check for Localhost and ANY Vercel link
+        if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
             callback(null, true);
         } else {
+            console.log("❌ Blocked by CORS: ", origin);
             callback(new Error('Blocked by CORS policy'));
         }
     },
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    // ✅ ADDED 'OPTIONS' - He khup mukhya aahe signup sathi
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200 // Some older browsers need this
 })); 
 
 app.use(express.json()); 
@@ -69,9 +74,6 @@ const PORT = process.env.PORT || 5000;
 const IP_ADDRESS = getLocalIP();
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`-----------------------------------------------`);
     console.log(`🚀 Server running on Port: ${PORT}`);
-    console.log(`🏠 Local Access:   http://localhost:${PORT}`);
     console.log(`📡 Network Access: http://${IP_ADDRESS}:${PORT}`);
-    console.log(`-----------------------------------------------`);
 });
