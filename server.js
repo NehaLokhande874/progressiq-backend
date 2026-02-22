@@ -22,6 +22,7 @@ app.use(cors({
         if (!origin) return callback(null, true);
         
         // ✅ Strict check for Localhost and ANY Vercel link
+        // Handles both 'progresiq' and 'progressiq' variants automatically
         if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
             callback(null, true);
         } else {
@@ -29,11 +30,11 @@ app.use(cors({
             callback(new Error('Blocked by CORS policy'));
         }
     },
-    // ✅ ADDED 'OPTIONS' - He khup mukhya aahe signup sathi
+    // ✅ ADDED 'OPTIONS' - Preflight request sathi he khup mukhya aahe
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-    optionsSuccessStatus: 200 // Some older browsers need this
+    optionsSuccessStatus: 200 
 })); 
 
 app.use(express.json()); 
