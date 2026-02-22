@@ -1,43 +1,49 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
+const fs = require('fs');
 const Task = require('../models/Task');
 
-// --- 1. Multer Configuration ---
+// ✅ 1. Multer Configuration (Ensuring 'uploads' folder exists)
+const uploadDir = 'uploads/';
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+}
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); 
+        cb(null, uploadDir); 
     },
     filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
+        cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
-const upload = multer({ storage: storage });
+
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // --- 2. LEADER ROUTES ---
 
-/**
- * SINGLE TASK ASSIGN: 
- * Member Analysis page varun single task assign karnyasaathi
- */
+// SINGLE TASK ASSIGN
 router.post('/assign', async (req, res) => {
     try {
-        const { email, title, deadline, leaderEmail } = req.body;
+        const { email, title, deadline, leaderEmail, description } = req.body;
         
         const newTask = new Task({
-            title: title,
-            assignedTo: email, // Member's Email
-            leaderEmail: leaderEmail || "admin@test.com", // Leader's identifier
-            deadline: deadline,
-            // ✅ BADAL: Default status 'Pending' pahije, mhanje member login karel tevha to Active hoil
-            status: 'Pending' 
+            title,
+            description: description || "",
+            assignedTo: email,
+            leaderEmail: leaderEmail,
+            deadline,
+            status: 'Pending' // Initial state
         });
 
         await newTask.save();
         res.status(201).json(newTask);
     } catch (err) {
-        res.status(500).json({ error: "Failed to assign task" });
+        res.status(500).json({ error: "Failed to assign task: " + err.message });
     }
 });
 
@@ -52,24 +58,34 @@ router.post('/create-multiple', async (req, res) => {
             assignedTo: t.assignedTo,
             leaderEmail: leaderEmail,
             deadline: t.deadline,
-            // ✅ BADAL: Default status 'Pending'
             status: 'Pending' 
         }));
 
-        await Task.insertMany(formattedTasks);
-        res.status(201).json({ message: "Tasks assigned successfully!" });
+        const result = await Task.insertMany(formattedTasks);
+        res.status(201).json({ message: "Tasks assigned successfully!", count: result.length });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// FEEDBACK: Leader ne dila feedback save karnyasaathi
+// GET ALL: Leader Dashboard sathi
+router.get('/leader/:leaderEmail', async (req, res) => {
+    try {
+        // Navin tasks pahile dakhva
+        const tasks = await Task.find({ leaderEmail: req.params.leaderEmail }).sort({ createdAt: -1 });
+        res.json(tasks);
+    } catch (err) {
+        res.status(500).json({ error: "Error fetching leader tasks" });
+    }
+});
+
+// ADD FEEDBACK: Leader ne member chya kaamavar feedback dene
 router.put('/add-feedback/:id', async (req, res) => {
     try {
-        const { feedback } = req.body;
+        const { feedback, status } = req.body;
         const updatedTask = await Task.findByIdAndUpdate(
             req.params.id, 
-            { feedback: feedback }, 
+            { feedback: feedback, status: status || 'Completed' }, 
             { new: true }
         );
         res.json(updatedTask);
@@ -78,65 +94,48 @@ router.put('/add-feedback/:id', async (req, res) => {
     }
 });
 
-// GET ALL: Leader Dashboard cha progress table sathi
-router.get('/leader/:leaderEmail', async (req, res) => {
-    try {
-        const tasks = await Task.find({ leaderEmail: req.params.leaderEmail });
-        res.json(tasks);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// INVITE LINK: Mobile connectivity sathi
-router.post('/invite', async (req, res) => {
-    try {
-        const { leaderEmail } = req.body;
-        // Tip: Localhost vaprat asal tar IP update karat raha jar network badalle tar
-        const ipAddress = "10.157.236.1"; 
-        const groupLink = `http://${ipAddress}:5173/signup?leader=${leaderEmail}&role=Member`;
-        res.json({ link: groupLink });
-    } catch (err) {
-        res.status(500).json({ error: "Invite failed" });
-    }
-});
-
-// REMOVE MEMBER: Member ani tyache tasks delete karnyasaathi
-router.delete('/remove-member', async (req, res) => {
-    try {
-        const { memberEmail, leaderEmail } = req.body;
-        await Task.deleteMany({ assignedTo: memberEmail, leaderEmail: leaderEmail });
-        res.json({ message: "Member removed successfully!" });
-    } catch (err) {
-        res.status(500).json({ error: "Remove failed" });
-    }
-});
-
 // --- 3. MEMBER ROUTES ---
 
 // FETCH MY TASKS: Member Dashboard sathi
 router.get('/member/:email', async (req, res) => {
     try {
-        const tasks = await Task.find({ assignedTo: req.params.email });
+        const tasks = await Task.find({ assignedTo: req.params.email }).sort({ deadline: 1 });
+        
+        // Logical Fix: Jar status 'Pending' asel tar tyala 'Active' kara (Member ne pahila mhanun)
+        await Task.updateMany(
+            { assignedTo: req.params.email, status: 'Pending' },
+            { $set: { status: 'Active' } }
+        );
+        
         res.json(tasks);
     } catch (err) {
-        res.status(500).json({ message: "Error fetching tasks" });
+        res.status(500).json({ message: "Error fetching member tasks" });
     }
 });
 
-// SUBMIT WORK: File upload ani status update
+// SUBMIT WORK: Progress update with file
 router.put('/submit-work/:id', upload.single('workFile'), async (req, res) => {
     try {
+        const { submissionNote } = req.body;
+        
         const updateData = {
-            status: 'Completed',
-            submissionNote: req.body.submissionNote,
-            fileUrl: req.file ? `/uploads/${req.file.filename}` : null,
+            status: 'Submitted', // Member ne progress pathvli mhanje status 'Submitted'
+            submissionNote: submissionNote,
             submittedAt: new Date()
         };
+
+        if (req.file) {
+            updateData.fileUrl = `/uploads/${req.file.filename}`;
+        }
+
         const task = await Task.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        
+        if (!task) return res.status(404).json({ message: "Task not found" });
+        
         res.json(task);
     } catch (err) {
-        res.status(500).json({ message: "Submission failed" });
+        console.error("Upload Error:", err);
+        res.status(500).json({ message: "Submission failed", error: err.message });
     }
 });
 
