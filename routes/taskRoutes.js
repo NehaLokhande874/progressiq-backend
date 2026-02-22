@@ -6,7 +6,8 @@ const path = require('path');
 const Task = require('../models/Task');
 
 // ✅ 1. Multer Configuration (Render-Safe Logic)
-const uploadDir = path.join(__dirname, '../uploads'); // Absolute path vapra
+// Absolute path vaparlyamule Render chya server var folder cha location chuknar nahi
+const uploadDir = path.join(__dirname, '../uploads'); 
 
 // Folder check logic - Error prevent karnyasaathi
 if (!fs.existsSync(uploadDir)) {
@@ -18,6 +19,7 @@ const storage = multer.diskStorage({
         cb(null, uploadDir); 
     },
     filename: (req, file, cb) => {
+        // Space kadhun underscore lavla mhanje URL madhe problem yenar nahi
         cb(null, Date.now() + '-' + file.originalname.replace(/\s/g, '_'));
     }
 });
