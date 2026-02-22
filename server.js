@@ -15,11 +15,11 @@ if (!fs.existsSync(uploadDir)) {
     console.log("📂 Created 'uploads' directory for storing files.");
 }
 
-// 💡 2. FINAL DYNAMIC CORS SETTINGS (Fixed for all Vercel links)
+// 💡 2. DYNAMIC CORS SETTINGS (Fixed for all spelling variants)
 app.use(cors({
     origin: function (origin, callback) {
-        // ✅ Allows localhost
-        // ✅ Allows any URL that contains 'vercel.app' (fixes all spelling/dynamic link issues)
+        // ✅ Allow localhost for development
+        // ✅ Allow ANY link containing 'vercel.app' (handles progresiq vs progressiq)
         if (!origin || origin.includes('localhost') || origin.includes('vercel.app')) {
             callback(null, true);
         } else {
