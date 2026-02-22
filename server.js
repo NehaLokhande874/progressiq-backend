@@ -5,46 +5,42 @@ require('dotenv').config();
 
 const app = express();
 
-// ✅ FIXED CORS — credentials:true is incompatible with origin:'*'
-const allowedOrigins = [
-  'https://progressiq-frontend.vercel.app',
-  'http://localhost:3000', // for local dev
-];
-
+// ✅ 1. WILDCARD CORS CONFIGURATION
+// Everything is allowed - No more "Blocked by CORS policy" errors
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (Postman, cron pings, etc.)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: true,
+  credentials: false // Note: credentials must be false when using '*'
 }));
 
-// ✅ Handle preflight for ALL routes — must be BEFORE routes
+// ✅ 2. EXPLICIT OPTIONS HANDLER
+// Directly handles the preflight requests that were failing in your screenshots
 app.options('*', cors());
 
+// ✅ 3. MIDDLEWARE
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/tasks', require('./routes/taskRoutes'));
-
-// Health check — keeps Render awake via cron-job.org
+// ✅ 4. HEALTH CHECK ROUTE
+// Used by cron-job.org to keep your Render instance active
 app.get('/health', (req, res) => {
   res.status(200).json({ status: '✅ ProgressIQ backend is live' });
 });
 
-// Database
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ ProgressIQ Database Connected...'))
-  .catch(err => console.log('❌ DB Error:', err));
+// ✅ 5. ROUTES
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/tasks', require('./routes/taskRoutes'));
 
+// ✅ 6. DATABASE CONNECTION
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('✅ ProgressIQ Database Connected...'))
+  .catch(err => console.log('❌ DB Connection Error:', err));
+
+// ✅ 7. SERVER LISTEN
 const PORT = process.env.PORT || 5000;
+// Binding to 0.0.0.0 is mandatory for Render deployment
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server live on port ${PORT}`);
+  console.log(`🚀 Server running on Port: ${PORT}`);
 });
