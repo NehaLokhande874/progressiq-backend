@@ -2,27 +2,31 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const http = require('http'); // Socket.io sathi garjeche
-const { Server } = require('socket.io'); // Socket.io library
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
-const server = http.createServer(app); // HTTP server create kela
+const server = http.createServer(app);
 
-// ✅ 1. FIXED CORS CONFIGURATION (Socket.io & API sathi)
-const io = new Server(server, {
-  cors: {
-    origin: ['https://progressiq-frontend.vercel.app', 'http://localhost:3000'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true
-  }
-});
+// ✅ 1. CORS & SOCKET.IO CONFIGURATION
+const allowedOrigins = [
+  'https://progressiq-frontend.vercel.app', 
+  'http://localhost:3000'
+];
 
-app.use(cors({
-  origin: ['https://progressiq-frontend.vercel.app', 'http://localhost:3000'],
+const corsOptions = {
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true 
-}));
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
+
+const io = new Server(server, {
+  cors: corsOptions
+});
 
 // ✅ 2. MIDDLEWARE
 app.use(express.json());
@@ -34,9 +38,9 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => console.log('❌ Client Disconnected'));
 });
 
-// ✅ 4. ROUTES (Attaching IO to Request Object for Controllers)
+// ✅ 4. ROUTES (Injecting IO)
 app.use((req, res, next) => {
-  req.io = io; // Controller madhe 'req.io.emit' vaprayla milel
+  req.io = io;
   next();
 });
 
@@ -50,12 +54,12 @@ app.get('/health', (req, res) => {
 });
 
 // ✅ 6. DATABASE CONNECTION
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/ProgressIQ";
+const MONGO_URI = process.env.MONGO_URI; // .env madhunच घ्या
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ ProgressIQ Database Connected...'))
   .catch(err => console.log('❌ DB Connection Error:', err));
 
-// ✅ 7. SERVER LISTEN (app.listen aivaji server.listen vapra)
+// ✅ 7. SERVER LISTEN
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Real-Time Server running on Port: ${PORT}`);
