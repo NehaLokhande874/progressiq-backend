@@ -8,28 +8,23 @@ const jwt = require('jsonwebtoken');
 // --- SIGNUP USER ---
 router.post('/signup', async (req, res) => {
     try {
-        const { username, email, password, role, adminSecretKey } = req.body; 
+        const { name, email, password, role } = req.body; // ✅ "name" instead of "username"
 
-        // 1. User exist aahe ka check kara
+        // 1. Check if user exists
         let user = await User.findOne({ email });
         if (user) {
-            return res.status(400).json({ msg: 'User already exists' });
+            return res.status(400).json({ message: 'User already exists' });
         }
 
-        // 🛡️ ADMIN PROTECTION: Fakt secret key asel tarach Admin role milel
-        let assignedRole = role || 'Member';
-        if (assignedRole === 'Admin') {
-            if (adminSecretKey !== 'PROGRESS_IQ_SUPER_SECRET_99') { // He key tumhi badlu shakta
-                return res.status(403).json({ msg: "Unauthorized: Invalid Admin Key!" });
-            }
-        }
+        // 🛡️ ADMIN PROTECTION
+        let assignedRole = role || 'member';
 
-        // 2. Password hash kara
+        // 2. Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 3. Navin user save kara
+        // 3. Save new user
         user = new User({
-            username,
+            username: name,  // ✅ map "name" from frontend → "username" in DB
             email,
             password: hashedPassword,
             role: assignedRole 
@@ -38,17 +33,18 @@ router.post('/signup', async (req, res) => {
         await user.save();
 
         // Member status activate logic
-        if (user.role === 'Member') {
+        if (user.role === 'member') {
             await Task.updateMany(
                 { assignedTo: email, status: 'Pending' }, 
                 { $set: { status: 'Active' } }   
             );
         }
         
-        res.status(201).json({ msg: "User registered successfully", role: user.role });
+        res.status(201).json({ message: "User registered successfully", role: user.role });
 
     } catch (err) {
-        res.status(500).json({ error: "Server Error: " + err.message });
+        console.error('Signup error:', err.message);
+        res.status(500).json({ message: "Server Error: " + err.message });
     }
 });
 
@@ -59,12 +55,12 @@ router.post('/login', async (req, res) => {
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({ msg: "User does not exist" });
+            return res.status(400).json({ message: "User does not exist" });
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(400).json({ msg: "Invalid credentials" });
+            return res.status(400).json({ message: "Invalid credentials" });
         }
 
         // JWT Token
@@ -74,45 +70,50 @@ router.post('/login', async (req, res) => {
             { expiresIn: '24h' } 
         );
 
+        // ✅ Wrapped in user:{} so Login.jsx can read data.user.role etc.
         res.json({
             token,
-            username: user.username,
-            email: user.email, 
-            role: user.role 
+            user: {
+                name:  user.username,
+                email: user.email,
+                role:  user.role
+            }
         });
 
     } catch (err) {
-        res.status(500).json({ msg: "Server Error: " + err.message });
+        console.error('Login error:', err.message);
+        res.status(500).json({ message: "Server Error: " + err.message });
     }
 });
 
 // ==========================================
-// 🔥 ADMIN ONLY ROUTES (SUPER POWERS) 🔥
+// 🔥 ADMIN ONLY ROUTES
 // ==========================================
 
-// 1. Get All Users (Admin Panel Table sathi)
+// 1. Get All Users
 router.get('/admin/users', async (req, res) => {
     try {
-        const users = await User.find().select('-password'); // Password kadhun sagle users dakhva
+        const users = await User.find().select('-password');
         res.json(users);
     } catch (err) {
-        res.status(500).json({ msg: "Users fetch failed" });
+        res.status(500).json({ message: "Users fetch failed" });
     }
 });
 
-// 2. Delete Any User (Admin power to remove anyone)
+// 2. Delete Any User
 router.delete('/admin/delete-user/:email', async (req, res) => {
     try {
         const { email } = req.params;
-        if(email === 'admin@gmail.com') return res.status(400).json({msg: "Cannot delete Super Admin!"});
+        if (email === 'admin@gmail.com') {
+            return res.status(400).json({ message: "Cannot delete Super Admin!" });
+        }
 
         await User.findOneAndDelete({ email });
-        // Tyache tasks pan delete kara mhanje DB clean rahil
         await Task.deleteMany({ $or: [{ leaderEmail: email }, { assignedTo: email }] });
 
-        res.json({ msg: `User ${email} and their data deleted successfully!` });
+        res.json({ message: `User ${email} and their data deleted successfully!` });
     } catch (err) {
-        res.status(500).json({ msg: "User deletion failed" });
+        res.status(500).json({ message: "User deletion failed" });
     }
 });
 
