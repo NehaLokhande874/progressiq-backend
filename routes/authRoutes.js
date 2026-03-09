@@ -8,14 +8,31 @@ const jwt     = require('jsonwebtoken');
 // ── SIGNUP ──
 router.post('/signup', async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, secretKey } = req.body;
+
+        // ✅ Validate secret key based on role
+        const assignedRole = (role || 'member').toLowerCase();
+
+        if (assignedRole === 'admin') {
+            if (secretKey !== process.env.ADMIN_KEY) {
+                return res.status(403).json({ message: '❌ Invalid Admin secret key!' });
+            }
+        }
+        if (assignedRole === 'leader') {
+            if (secretKey !== process.env.LEADER_KEY) {
+                return res.status(403).json({ message: '❌ Invalid Leader secret key!' });
+            }
+        }
+        if (assignedRole === 'mentor') {
+            if (secretKey !== process.env.MENTOR_KEY) {
+                return res.status(403).json({ message: '❌ Invalid Mentor secret key!' });
+            }
+        }
 
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ message: 'User already exists' });
 
-        const assignedRole   = (role || 'member').toLowerCase();
         const hashedPassword = await bcrypt.hash(password, 10);
-
         user = new User({ username: name, email, password: hashedPassword, role: assignedRole });
         await user.save();
 
